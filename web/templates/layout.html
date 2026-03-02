@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="5">
+    <title>GoQueue — {{block "title" .}}Dashboard{{end}}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        header {
+            background: #1a1a2e;
+            color: #fff;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        header h1 { font-size: 1.4rem; }
+        header nav a {
+            color: #aaa;
+            text-decoration: none;
+            margin-left: 1.5rem;
+        }
+        header nav a:hover { color: #fff; }
+        main { max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .card h2 { margin-bottom: 1rem; font-size: 1.1rem; color: #555; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+        }
+        .stat {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 6px;
+            background: #f9f9f9;
+        }
+        .stat .number { font-size: 2rem; font-weight: bold; }
+        .stat .label { font-size: 0.85rem; color: #777; text-transform: uppercase; }
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .badge-pending   { background: #f0ad4e; }
+        .badge-running   { background: #5bc0de; }
+        .badge-completed { background: #5cb85c; }
+        .badge-failed    { background: #d9534f; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid #eee; }
+        th { color: #777; font-size: 0.85rem; text-transform: uppercase; }
+        td a { color: #337ab7; text-decoration: none; }
+        td a:hover { text-decoration: underline; }
+        .btn {
+            display: inline-block;
+            padding: 0.4rem 1rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-decoration: none;
+            color: #fff;
+        }
+        .btn-retry  { background: #f0ad4e; }
+        .btn-cancel { background: #d9534f; }
+        .btn:hover { opacity: 0.85; }
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 0.5rem 1rem;
+        }
+        .detail-grid dt { font-weight: 600; color: #777; }
+        .detail-grid dd { word-break: break-all; }
+        pre {
+            background: #f4f4f4;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+        }
+        .empty { text-align: center; color: #999; padding: 2rem; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>GoQueue</h1>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/api/jobs">API</a>
+        </nav>
+    </header>
+    <main>
+        {{block "content" .}}{{end}}
+    </main>
+</body>
+</html>

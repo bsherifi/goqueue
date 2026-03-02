@@ -12,14 +12,16 @@ import (
 type WorkerPool struct {
 	numWorkers int
 	jobChan    chan *Job
+	store      Store
 	wg         sync.WaitGroup
 }
 
-// NewWorkerPool creates a pool with the given number of workers and job channel.
-func NewWorkerPool(numWorkers int, jobChan chan *Job) *WorkerPool {
+// NewWorkerPool creates a pool with the given number of workers, job channel, and store.
+func NewWorkerPool(numWorkers int, jobChan chan *Job, store Store) *WorkerPool {
 	return &WorkerPool{
 		numWorkers: numWorkers,
 		jobChan:    jobChan,
+		store:      store,
 	}
 }
 
@@ -62,6 +64,7 @@ func (wp *WorkerPool) process(workerID int, job *Job) {
 
 	job.Status = StatusRunning
 	job.StartedAt = time.Now()
+	wp.store.Save(job)
 
 	// Simulate work: sleep 1-3 seconds
 	duration := time.Duration(1+rand.Intn(3)) * time.Second
@@ -72,6 +75,7 @@ func (wp *WorkerPool) process(workerID int, job *Job) {
 		job.Status = StatusFailed
 		job.Error = "simulated random failure"
 		job.EndedAt = time.Now()
+		wp.store.Save(job)
 		fmt.Printf("Worker %d: job %s failed (%s)\n", workerID, job.ID, duration)
 		return
 	}
@@ -79,5 +83,6 @@ func (wp *WorkerPool) process(workerID int, job *Job) {
 	job.Status = StatusCompleted
 	job.Result = fmt.Sprintf("processed by worker %d in %s", workerID, duration)
 	job.EndedAt = time.Now()
+	wp.store.Save(job)
 	fmt.Printf("Worker %d: job %s completed (%s)\n", workerID, job.ID, duration)
 }

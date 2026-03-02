@@ -3,26 +3,36 @@ package queue
 import (
 	"crypto/rand"
 	"fmt"
-	"sync"
 	"time"
 )
 
-// Manager holds all jobs in memory and provides a channel for workers to consume from.
+// Store is the interface the Manager uses for persistence.
+// Defined here (in the consumer package) following Go convention:
+// "Accept interfaces, return structs."
+type Store interface {
+	Save(job *Job) error
+	Get(id string) (*Job, error)
+	List(status Status) ([]*Job, error)
+	Delete(id string) error
+	Stats() (map[string]int, error)
+}
+
+// Manager coordinates job creation, dispatch, and persistence.
+// It owns the job channel but delegates storage to a Store.
 type Manager struct {
-	jobs    map[string]*Job
-	mu      sync.RWMutex
+	store   Store
 	JobChan chan *Job
 }
 
-// NewManager creates a Manager with the given queue buffer size.
-func NewManager(bufferSize int) *Manager {
+// NewManager creates a Manager backed by the given store.
+func NewManager(bufferSize int, store Store) *Manager {
 	return &Manager{
-		jobs:    make(map[string]*Job),
+		store:   store,
 		JobChan: make(chan *Job, bufferSize),
 	}
 }
 
-// AddJob creates a new job and sends it to the job channel for workers to pick up.
+// AddJob creates a new job, persists it, and sends it to workers.
 func (m *Manager) AddJob(jobType string, payload []byte) (*Job, error) {
 	id, err := generateID()
 	if err != nil {
@@ -37,9 +47,9 @@ func (m *Manager) AddJob(jobType string, payload []byte) (*Job, error) {
 		CreatedAt: time.Now(),
 	}
 
-	m.mu.Lock()
-	m.jobs[id] = job
-	m.mu.Unlock()
+	if err := m.store.Save(job); err != nil {
+		return nil, fmt.Errorf("save job: %w", err)
+	}
 
 	m.JobChan <- job
 
@@ -48,58 +58,37 @@ func (m *Manager) AddJob(jobType string, payload []byte) (*Job, error) {
 
 // GetJob returns a single job by ID.
 func (m *Manager) GetJob(id string) (*Job, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	job, ok := m.jobs[id]
-	if !ok {
-		return nil, fmt.Errorf("job %s not found", id)
-	}
-	return job, nil
+	return m.store.Get(id)
 }
 
 // ListJobs returns all jobs, optionally filtered by status.
 func (m *Manager) ListJobs(status Status) []*Job {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	result := make([]*Job, 0)
-	for _, job := range m.jobs {
-		if status == "" || job.Status == status {
-			result = append(result, job)
-		}
+	jobs, _ := m.store.List(status)
+	if jobs == nil {
+		return []*Job{}
 	}
-	return result
+	return jobs
 }
 
 // DeleteJob cancels a pending job by removing it from the store.
 func (m *Manager) DeleteJob(id string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	job, ok := m.jobs[id]
-	if !ok {
-		return fmt.Errorf("job %s not found", id)
+	job, err := m.store.Get(id)
+	if err != nil {
+		return err
 	}
 	if job.Status != StatusPending {
 		return fmt.Errorf("can only cancel pending jobs, current status: %s", job.Status)
 	}
-
-	delete(m.jobs, id)
-	return nil
+	return m.store.Delete(id)
 }
 
-// RetryJob requeues a failed job by resetting its status and sending it to the channel.
+// RetryJob requeues a failed job by resetting its status and re-dispatching.
 func (m *Manager) RetryJob(id string) (*Job, error) {
-	m.mu.Lock()
-
-	job, ok := m.jobs[id]
-	if !ok {
-		m.mu.Unlock()
-		return nil, fmt.Errorf("job %s not found", id)
+	job, err := m.store.Get(id)
+	if err != nil {
+		return nil, err
 	}
 	if job.Status != StatusFailed {
-		m.mu.Unlock()
 		return nil, fmt.Errorf("can only retry failed jobs, current status: %s", job.Status)
 	}
 
@@ -109,7 +98,9 @@ func (m *Manager) RetryJob(id string) (*Job, error) {
 	job.StartedAt = time.Time{}
 	job.EndedAt = time.Time{}
 
-	m.mu.Unlock()
+	if err := m.store.Save(job); err != nil {
+		return nil, fmt.Errorf("save job: %w", err)
+	}
 
 	m.JobChan <- job
 
@@ -118,18 +109,9 @@ func (m *Manager) RetryJob(id string) (*Job, error) {
 
 // Stats returns counts of jobs by status.
 func (m *Manager) Stats() map[string]int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	stats := map[string]int{
-		"pending":   0,
-		"running":   0,
-		"completed": 0,
-		"failed":    0,
-		"total":     len(m.jobs),
-	}
-	for _, job := range m.jobs {
-		stats[string(job.Status)]++
+	stats, _ := m.store.Stats()
+	if stats == nil {
+		return map[string]int{}
 	}
 	return stats
 }

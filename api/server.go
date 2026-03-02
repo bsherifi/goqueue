@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/betim/goqueue/queue"
+	"github.com/betim/goqueue/web"
 )
 
 // Server wraps the HTTP server and its dependencies.
@@ -19,10 +20,15 @@ func NewServer(port int, manager *queue.Manager) *Server {
 	h := &Handlers{Manager: manager}
 	mux := http.NewServeMux()
 
+	// API routes
 	mux.HandleFunc("/api/health", h.Health)
 	mux.HandleFunc("/api/stats", h.Stats)
 	mux.HandleFunc("/api/jobs", h.Jobs)
 	mux.HandleFunc("/api/jobs/", h.Jobs)
+
+	// Web dashboard routes
+	dashboard := web.NewDashboard(manager)
+	dashboard.RegisterRoutes(mux)
 
 	return &Server{
 		httpServer: &http.Server{

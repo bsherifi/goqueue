@@ -1,0 +1,57 @@
+{{define "title"}}Job {{slice .Job.ID 0 12}}...{{end}}
+
+{{define "content"}}
+<div class="card">
+    <h2>Job Detail</h2>
+    <dl class="detail-grid">
+        <dt>ID</dt>
+        <dd>{{.Job.ID}}</dd>
+
+        <dt>Type</dt>
+        <dd>{{.Job.Type}}</dd>
+
+        <dt>Status</dt>
+        <dd><span class="badge badge-{{.Job.Status}}">{{.Job.Status}}</span></dd>
+
+        <dt>Created</dt>
+        <dd>{{.Job.CreatedAt.Format "2006-01-02 15:04:05"}}</dd>
+
+        {{if not .Job.StartedAt.IsZero}}
+        <dt>Started</dt>
+        <dd>{{.Job.StartedAt.Format "2006-01-02 15:04:05"}}</dd>
+        {{end}}
+
+        {{if not .Job.EndedAt.IsZero}}
+        <dt>Ended</dt>
+        <dd>{{.Job.EndedAt.Format "2006-01-02 15:04:05"}}</dd>
+        {{end}}
+
+        <dt>Payload</dt>
+        <dd><pre>{{printf "%s" .Job.Payload}}</pre></dd>
+
+        {{if .Job.Result}}
+        <dt>Result</dt>
+        <dd><pre>{{.Job.Result}}</pre></dd>
+        {{end}}
+
+        {{if .Job.Error}}
+        <dt>Error</dt>
+        <dd><pre>{{.Job.Error}}</pre></dd>
+        {{end}}
+    </dl>
+</div>
+
+<div class="card">
+    {{if eq (printf "%s" .Job.Status) "failed"}}
+    <form method="POST" action="/api/jobs/{{.Job.ID}}/retry" style="display:inline">
+        <button type="submit" class="btn btn-retry">Retry Job</button>
+    </form>
+    {{end}}
+    {{if eq (printf "%s" .Job.Status) "pending"}}
+    <form method="POST" action="/jobs/{{.Job.ID}}/cancel" style="display:inline">
+        <button type="submit" class="btn btn-cancel">Cancel Job</button>
+    </form>
+    {{end}}
+    <a href="/" class="btn" style="background:#337ab7; margin-left:0.5rem;">Back to Dashboard</a>
+</div>
+{{end}}

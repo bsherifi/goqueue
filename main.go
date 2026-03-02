@@ -11,22 +11,38 @@ import (
 
 	"github.com/betim/goqueue/api"
 	"github.com/betim/goqueue/queue"
+	"github.com/betim/goqueue/store"
 )
 
 func main() {
 	port := flag.Int("port", 8080, "HTTP server port")
 	workers := flag.Int("workers", 4, "number of worker goroutines")
+	dbPath := flag.String("db", "", "path to SQLite database file (empty = in-memory)")
 	flag.Parse()
 
-	fmt.Printf("GoQueue starting (port=%d, workers=%d)\n", *port, *workers)
+	// Create the store — SQLite if --db is given, otherwise in-memory.
+	var jobStore queue.Store
+	if *dbPath != "" {
+		s, err := store.NewSQLiteStore(*dbPath)
+		if err != nil {
+			fmt.Printf("Failed to open database: %s\n", err)
+			os.Exit(1)
+		}
+		defer s.Close()
+		jobStore = s
+		fmt.Printf("GoQueue starting (port=%d, workers=%d, db=%s)\n", *port, *workers, *dbPath)
+	} else {
+		jobStore = store.NewMemoryStore()
+		fmt.Printf("GoQueue starting (port=%d, workers=%d, db=in-memory)\n", *port, *workers)
+	}
 
 	// Create a context that cancels on SIGINT or SIGTERM
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	// Create the queue manager and worker pool
-	manager := queue.NewManager(100)
-	pool := queue.NewWorkerPool(*workers, manager.JobChan)
+	manager := queue.NewManager(100, jobStore)
+	pool := queue.NewWorkerPool(*workers, manager.JobChan, jobStore)
 	pool.Start(ctx)
 
 	// Start the HTTP server in a goroutine so it doesn't block
